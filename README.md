@@ -54,10 +54,8 @@ class FirstPage extends StatelessWidget {
   const FirstPage({super.key, required this.onNext, required this.onClose});
 
   @override  
-  Widget build(BuildContext context) {  
-    // Wrap page content to prevent overflows  
-    return SingleChildScrollView(  
-      child: Padding(  
+  Widget build(BuildContext context) { 
+    return Padding(  
         padding: const EdgeInsets.all(24.0),  
         child: Column(  
           mainAxisSize: MainAxisSize.min, // Important for height calculation  
@@ -67,8 +65,7 @@ class FirstPage extends StatelessWidget {
             const SizedBox(height: 24),  
             ElevatedButton(onPressed: onNext, child: const Text('Continue')),  
           ],  
-        ),  
-      ),  
+        ),    
     );  
   }  
 }
