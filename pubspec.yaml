@@ -1,10 +1,10 @@
 name: continuous_bottom_sheet
-description: "A highly customizable Flutter package for creating a modal bottom sheet with multiple, swipeable pages. Each page can have a different height, and the sheet smoothly animates its size when navigating between pages."
+description: "A highly customizable Flutter package for creating a modal bottom sheet with multiple, swipeable pages."
 
 homepage: https://github.com/Ehsan-abaci
-repository: https://github.com/Ehsan-abaci/continuous_bottom_sheet
+repository: https://github.com/Ehsan-abaci/continuous_bottom_sheet.git
 
-version: 1.0.0
+version: 1.0.1
 
 environment:
   sdk: ^3.7.2
