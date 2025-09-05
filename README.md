@@ -19,10 +19,10 @@ This package is built with a focus on a clean API, modularity, and extensive cus
 ## **Installation**
 
 Add this to your package's pubspec.yaml file:
-
+```dart
 dependencies:  
-  continuous\_bottom\_sheet: ^1.0.0 \# Replace with the latest version
-
+  continuous_bottom_sheet: ^1.0.0 # Replace with the latest version
+```
 Then, run flutter pub get in your terminal.
 
 ## **Usage**
@@ -32,20 +32,20 @@ Using the continuous bottom sheet is straightforward. Follow these three steps:
 ### **1\. Create a Controller**
 
 First, create an instance of ContinuousBottomSheetController. It's best to define it within your State class so it persists.
-
-class \_MyHomePageState extends State\<MyHomePage\> {  
+```dart
+class _MyHomePageState extends State<MyHomePage> {  
   // Define the controller once to be used by the bottom sheet.  
-  final sheetController \= ContinuousBottomSheetController();
+  final sheetController = ContinuousBottomSheetController();
 
   // ... rest of the code  
 }
-
+```
 ### **2\. Define Your Pages**
 
 Create a list of widgets that will serve as the pages for your bottom sheet.
 
 **Important:** To prevent potential layout overflows with dynamic content (like TextFields), it is highly recommended to wrap the content of each page in a SingleChildScrollView.
-
+```dart
 // Example Page Widget  
 class FirstPage extends StatelessWidget {  
   final VoidCallback onNext;  
@@ -61,27 +61,27 @@ class FirstPage extends StatelessWidget {
         padding: const EdgeInsets.all(24.0),  
         child: Column(  
           mainAxisSize: MainAxisSize.min, // Important for height calculation  
-          children: \[  
+          children: [  
             const Text("Step 1"),  
             const TextField(decoration: InputDecoration(labelText: 'Your Name')),  
             const SizedBox(height: 24),  
             ElevatedButton(onPressed: onNext, child: const Text('Continue')),  
-          \],  
+          ],  
         ),  
       ),  
     );  
   }  
 }
-
+```
 ### **3\. Show the Bottom Sheet**
 
 Call the showContinuousBottomSheet function from an event handler, like a button's onPressed callback. Pass the context, the controller, and your list of pages.
-
-void \_openBottomSheet() {  
+```dart
+void _openBottomSheet() {  
   showContinuousBottomSheet(  
     context: context,  
     controller: sheetController,  
-    pages: \[  
+    pages: [  
       FirstPage(  
         onNext: sheetController.nextPage,  
         onClose: sheetController.close,  
@@ -91,14 +91,14 @@ void \_openBottomSheet() {
         onNext: sheetController.nextPage,  
       ),  
       // ... more pages  
-    \],  
+    ],  
   );  
 }
-
+```
 ## **Customization**
 
 You can customize the appearance and behavior of the bottom sheet by passing optional parameters to the showContinuousBottomSheet function.
-
+```dart
 showContinuousBottomSheet(  
   context: context,  
   controller: sheetController,  
@@ -114,7 +114,7 @@ showContinuousBottomSheet(
   pageSlideAnimationCurve: Curves.linear,  
   physics: const BouncingScrollPhysics(),  
 );
-
+```
 | Parameter | Type | Description |
 | :---- | :---- | :---- |
 | backgroundColor | Color? | The background color of the bottom sheet container. |
@@ -145,10 +145,10 @@ The ContinuousBottomSheetController provides methods to control the bottom sheet
 
 ## **Reporting Issues and Contributing**
 
-Find a bug or have a feature request? Please open an issue on our [GitHub repository](https://www.google.com/search?q=https://github.com/your_username/continuous_bottom_sheet/issues).
+Find a bug or have a feature request? Please open an issue on our [GitHub repository](https://github.com/Ehsan-abaci/continuous_bottom_sheet/issues).
 
 Contributions are welcome\!
 
 ## **License**
 
-This project is licensed under the MIT License \- see the [LICENSE](https://www.google.com/search?q=LICENSE) file for details.
+This project is licensed under the MIT License \- see the [LICENSE](https://github.com/Ehsan-abaci/continuous_bottom_sheet/blob/master/LICENSE) file for details.
