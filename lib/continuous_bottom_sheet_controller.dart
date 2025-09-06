@@ -1,198 +1,197 @@
 import 'dart:async';
+import 'package:continuous_bottom_sheet/fade_transition_page_route_builder.dart';
 import 'package:continuous_bottom_sheet/helper/measurement_helper.dart';
 import 'package:flutter/material.dart';
 
-/// A controller for managing the state of a [ContinuousBottomSheet].
+/// Controller for the [ContinuousBottomSheet].
 ///
-/// This controller allows you to programmatically navigate between pages
-/// or close the entire bottom sheet.
+/// This controller allows you to programmatically push, pop, and close the bottom sheet.
 class ContinuousBottomSheetController {
   _ContinuousBottomSheetState? _state;
 
-  /// The total number of pages in the bottom sheet.
-  int get pageCount => _state?.widget.pages.length ?? 0;
+  /// Pushes a new page onto the bottom sheet's navigation stack.
+  Future<T?>? push<T extends Object?>(Widget page) => _state?._push(page);
 
-  /// The index of the currently visible page.
-  int get currentPage => _state?._pageController.page?.round() ?? 0;
+  /// Whether the bottom sheet can be popped.
+  bool canPop() => _state?._canPop() ?? false;
 
-  /// Animates to the next page in the bottom sheet.
-  void nextPage() => _state?._nextPage();
-
-  /// Animates to the previous page in the bottom sheet.
-  void previousPage() => _state?._previousPage();
-
-  /// Animates to the specified page index.
-  void animateToPage(int page) => _state?._animateToPage(page);
-
-  /// Jumps directly to the specified page index without animation.
-  void jumpToPage(int page) => _state?._jumpToPage(page);
+  /// Pops the top-most page from the bottom sheet's navigation stack.
+  void pop<T extends Object?>([T? result]) => _state?._pop(result);
 
   /// Closes the entire bottom sheet.
   void close() => _state?._close();
 
+  /// Attaches the controller to the bottom sheet's state.
   void _attach(_ContinuousBottomSheetState state) => _state = state;
+
+  /// Detaches the controller from the bottom sheet's state.
   void _detach() => _state = null;
 }
 
-/// A modal bottom sheet with multiple, swipeable pages, where each
-/// page can have a different height, and the sheet animates between heights.
+/// A [RouteObserver] that calls callbacks when routes are pushed or popped.
+class _MyRouteObserver extends RouteObserver<PageRoute> {
+  final void Function(PageRoute<dynamic> route) onRoutePushed;
+  final void Function(PageRoute<dynamic> route) onRoutePopped;
+
+  _MyRouteObserver({required this.onRoutePushed, required this.onRoutePopped});
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    if (route is PageRoute) {
+      onRoutePushed(route);
+    }
+    super.didPush(route, previousRoute);
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    if (route is PageRoute) {
+      onRoutePopped(route);
+    }
+    super.didPop(route, previousRoute);
+  }
+}
+
+/// The main widget for the continuous bottom sheet.
 class ContinuousBottomSheet extends StatefulWidget {
   const ContinuousBottomSheet({
     super.key,
     required this.controller,
-    required this.pages,
-    this.backgroundColor,
-    this.shape,
-    this.clipBehavior = Clip.antiAlias,
+    required this.initialPage,
     this.heightAnimationDuration = const Duration(milliseconds: 300),
     this.heightAnimationCurve = Curves.easeInOutCubic,
     this.pageSlideAnimationDuration = const Duration(milliseconds: 400),
     this.pageSlideAnimationCurve = Curves.easeInOutCubic,
-    this.physics,
   });
 
-  /// The controller to programmatically control the bottom sheet.
   final ContinuousBottomSheetController controller;
-
-  /// The list of widgets to display as pages.
-  final List<Widget> pages;
-
-  /// The background color of the bottom sheet.
-  final Color? backgroundColor;
-
-  /// The shape of the bottom sheet.
-  final ShapeBorder? shape;
-
-  /// The clipping behavior for the bottom sheet container.
-  final Clip clipBehavior;
-
-  /// The duration of the height change animation.
+  final Widget initialPage;
   final Duration heightAnimationDuration;
-
-  /// The curve of the height change animation.
   final Curve heightAnimationCurve;
-
-  /// The duration of the page slide animation when using controller methods.
   final Duration pageSlideAnimationDuration;
-
-  /// The curve of the page slide animation when using controller methods.
   final Curve pageSlideAnimationCurve;
-
-  /// The physics for the PageView, controlling the swipe behavior.
-  final ScrollPhysics? physics;
 
   @override
   State<ContinuousBottomSheet> createState() => _ContinuousBottomSheetState();
 }
 
 class _ContinuousBottomSheetState extends State<ContinuousBottomSheet> {
-  final _pageController = PageController();
-  final _heights = <int, double>{}; // Cache measured heights for performance
+  final _navigatorKey = GlobalKey<NavigatorState>();
+  late final _MyRouteObserver _routeObserver;
+  final _routeStack = <PageRoute>[];
+  final _heights = <PageRoute, double>{};
   double _targetHeight = 0;
 
   @override
   void initState() {
     super.initState();
     widget.controller._attach(this);
-
-    // Measure the initial page after the first frame has been rendered.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (widget.pages.isNotEmpty) {
-        _measureAndSetHeight(0);
-      }
-    });
+    _routeObserver = _MyRouteObserver(
+      onRoutePushed: (route) {
+        _routeStack.add(route);
+        // Measure and set the height of the new page after the frame is rendered.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _measureAndSetHeight(route);
+        });
+      },
+      onRoutePopped: (route) {
+        _heights.remove(route);
+        _routeStack.removeLast();
+        // If there are still pages in the stack, update the height to the previous page's height.
+        if (_routeStack.isNotEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _measureAndSetHeight(_routeStack.last);
+          });
+        }
+      },
+    );
   }
 
   @override
   void dispose() {
     widget.controller._detach();
-    _pageController.dispose();
     super.dispose();
   }
 
-  /// Called by the PageView's onPageChanged callback when a swipe completes.
-  void _onPageSwiped(int pageIndex) {
-    _measureAndSetHeight(pageIndex);
-  }
-
-  /// Measures a widget's height offstage and then updates the state to
-  /// animate the AnimatedContainer to the new height.
-  Future<void> _measureAndSetHeight(int pageIndex) async {
-    // Use cached height if available to avoid re-measuring on every swipe.
-    if (_heights.containsKey(pageIndex)) {
-      if (mounted && _targetHeight != _heights[pageIndex]) {
-        setState(() => _targetHeight = _heights[pageIndex]!);
+  /// Measures the height of a route's page and updates the bottom sheet's height.
+  Future<void> _measureAndSetHeight(PageRoute route) async {
+    // If the height is already cached, use it.
+    if (_heights.containsKey(route)) {
+      if (mounted && _targetHeight != _heights[route]) {
+        setState(() => _targetHeight = _heights[route]!);
       }
       return;
     }
-
-    final page = widget.pages[pageIndex];
-    final newHeight = await getOffstageWidgetHeight(page, context);
-
+    // Otherwise, measure the height of the widget offstage.
+    final newHeight = await getOffstageWidgetHeight(
+      Builder(
+        builder: (context) => route.buildPage(
+          context,
+          const AlwaysStoppedAnimation(1),
+          const AlwaysStoppedAnimation(1),
+        ),
+      ),
+      context,
+    );
+    // Update the height if the widget is still mounted.
     if (mounted && newHeight > 0) {
-      _heights[pageIndex] = newHeight; // Cache the new height
-      // Only update state if this is the currently viewed page
-      if ((_pageController.page?.round() ?? 0) == pageIndex &&
-          _targetHeight != newHeight) {
+      _heights[route] = newHeight;
+      if (mounted && _targetHeight != newHeight) {
         setState(() => _targetHeight = newHeight);
       }
     }
   }
 
-  void _animateToPage(int page) {
-    if (page >= 0 && page < widget.pages.length) {
-      _pageController.animateToPage(
-        page,
-        duration: widget.pageSlideAnimationDuration,
-        curve: widget.pageSlideAnimationCurve,
-      );
-    }
+  /// Pushes a new page onto the navigator stack.
+  Future<T?>? _push<T extends Object?>(Widget page) {
+    return _navigatorKey.currentState?.push<T>(
+      FadeTransitionPageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            SingleChildScrollView(child: page),
+        pageSlideAnimationCurve: widget.pageSlideAnimationCurve,
+        transitionDuration: widget.pageSlideAnimationDuration,
+        reverseTransitionDuration: widget.pageSlideAnimationDuration,
+      ),
+    );
   }
 
-  void _jumpToPage(int page) {
-    if (page >= 0 && page < widget.pages.length) {
-      _pageController.jumpToPage(page);
-    }
+  /// Checks if the navigator can pop a page.
+  bool _canPop() {
+    return _navigatorKey.currentState?.canPop() ?? false;
   }
 
-  void _nextPage() {
-    final currentPage = _pageController.page?.round() ?? 0;
-    if (currentPage < widget.pages.length - 1) {
-      _animateToPage(currentPage + 1);
-    }
+  /// Pops the top-most page from the navigator stack.
+  void _pop<T extends Object?>([T? result]) {
+    _navigatorKey.currentState?.pop(result);
   }
 
-  void _previousPage() {
-    final currentPage = _pageController.page?.round() ?? 0;
-    if (currentPage > 0) {
-      _animateToPage(currentPage - 1);
-    } else {
-      _close();
-    }
-  }
-
+  /// Closes the bottom sheet.
   void _close() {
     if (mounted) Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    // Animate the height of the bottom sheet when it changes.
     return AnimatedContainer(
       duration: widget.heightAnimationDuration,
       curve: widget.heightAnimationCurve,
       height: _targetHeight,
-      child: Material(
-        color: widget.backgroundColor ?? theme.bottomSheetTheme.backgroundColor,
-        shape: widget.shape ?? theme.bottomSheetTheme.shape,
-        clipBehavior: widget.clipBehavior,
-        child: PageView(
-          controller: _pageController,
-          onPageChanged: _onPageSwiped,
-          physics: widget.physics,
-          children:
-              widget.pages.map((p) => SingleChildScrollView(child: p)).toList(),
-        ),
+      // The navigator that manages the pages within the bottom sheet.
+      child: Navigator(
+        key: _navigatorKey,
+        observers: [_routeObserver],
+        onGenerateInitialRoutes: (navigator, initialRoute) {
+          return [
+            FadeTransitionPageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  SingleChildScrollView(child: widget.initialPage),
+              pageSlideAnimationCurve: widget.pageSlideAnimationCurve,
+              transitionDuration: widget.pageSlideAnimationDuration,
+              reverseTransitionDuration: widget.pageSlideAnimationDuration,
+            ),
+          ];
+        },
       ),
     );
   }

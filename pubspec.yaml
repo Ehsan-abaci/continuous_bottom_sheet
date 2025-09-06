@@ -4,7 +4,7 @@ description: "A highly customizable Flutter package for creating a modal bottom 
 homepage: https://github.com/Ehsan-abaci
 repository: https://github.com/Ehsan-abaci/continuous_bottom_sheet.git
 
-version: 1.0.1
+version: 2.0.0
 
 environment:
   sdk: ^3.7.2
